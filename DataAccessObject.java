@@ -20,13 +20,14 @@
 
 
  */
-package org.quickconnect.dbaccess;
+package org.quickconnectfamily.dbaccess;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collection;
@@ -34,6 +35,7 @@ import java.util.Iterator;
 import java.util.concurrent.Semaphore;
 
 import android.app.Activity;
+import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
@@ -79,13 +81,17 @@ public class DataAccessObject {
 	 */
 	private DataAccessObject(){}
 
-	private synchronized static SQLiteDatabase generateDataAccessObject(Activity anActivity, String databaseName) throws DataAccessException {
+	private synchronized static SQLiteDatabase generateDataAccessObject(WeakReference<Context> aContextRef, String databaseName) throws DataAccessException {
 		SQLiteDatabase retVal = null;
-		if(anActivity == null || databaseName == null){
-			throw new DataAccessException("Error: unable to access the database "+databaseName+" for the activity "+anActivity);
+		if(aContextRef == null || databaseName == null){
+			throw new DataAccessException("Error: unable to access the database "+databaseName+" for the activity "+aContextRef);
 		}
 		if(databaseDirectory == null){
-			databaseDirectory = "/data/data/"+anActivity.getPackageName()+"/databases/";
+			Context aContext = aContextRef.get();
+			if(aContext == null){
+				return null;
+			}
+			databaseDirectory = "/data/data/"+aContext.getPackageName()+"/databases/";
 		}
 		File dbDir = new File(databaseDirectory);
 		if (!dbDir.exists()){
@@ -94,7 +100,11 @@ public class DataAccessObject {
 		try {
 			File dbFile = new File(databaseDirectory+databaseName);
 			if(!dbFile.exists()){
-				InputStream in = anActivity.getAssets().open(databaseName); 
+				Context aContext = aContextRef.get();
+				if(aContext == null){
+					return null;
+				}
+				InputStream in = aContext.getAssets().open(databaseName); 
 				// Open the output file 
 				OutputStream out = new FileOutputStream(databaseDirectory+databaseName); 
 				// Transfer bytes from the input file to the output file 
@@ -125,9 +135,9 @@ public class DataAccessObject {
 	 * This method is used to execute standard SQL query statements and matching prepared statements against any SQLite database file included in 
 	 * the assets directory of an Android application.
 	 * @deprecated  Replaced by              
-	 * 	{@link #transact(Activity anActivity, String databaseName, String SQL, Object[] parameters)}
+	 * 	{@link #transact(Activity aContext, String databaseName, String SQL, Object[] parameters)}
 	 * 
-	 * @param anActivity - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
+	 * @param aContext - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
 	 * the application.
 	 * @param databaseName - A string that matches the name of the SQLite file included in the assets directory of the Android application.
 	 * @param SQL - An SQL string for a standard SQL statement or a prepared statement used to query the database
@@ -137,17 +147,17 @@ public class DataAccessObject {
 	 * data found as a result of the query, and other helpful pieces of information.
 	 * @throws DataAccessException
 	 */
-	public static DataAccessResult getData(Activity anActivity, String databaseName, String SQL, Object[] parameters) throws DataAccessException{
-		return dbAccess(anActivity, databaseName, SQL, parameters, false);
+	public static DataAccessResult getData(WeakReference<Context> aContextRef, String databaseName, String SQL, Object[] parameters) throws DataAccessException{
+		return dbAccess(aContextRef, databaseName, SQL, parameters, false);
 	}
 	/**
 	 * This method is used to execute standard insert, update, etc. SQL statements and matching prepared statements against any SQLite database file included in 
 	 * the assets directory of an Android application.
 	 * 
 	 * @deprecated  Replaced by              
-	 * 	{@link #transact(Activity anActivity, String databaseName, String SQL, Object[] parameters)}
+	 * 	{@link #transact(Activity aContext, String databaseName, String SQL, Object[] parameters)}
 	 *
-	 * @param anActivity - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
+	 * @param aContext - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
 	 * the application.
 	 * @param databaseName - A string that matches the name of the SQLite file included in the assets directory of the Android application.
 	 * @param SQL - An SQL string for a standard SQL statement or a prepared statement used to query the database
@@ -157,14 +167,14 @@ public class DataAccessObject {
 	 *  and other helpful pieces of information.
 	 * @throws DataAccessException
 	 */
-	public static DataAccessResult setData(Activity anActivity, String databaseName, String SQL, Object[] parameters) throws DataAccessException{
-		return dbAccess(anActivity, databaseName, SQL, parameters, true);
+	public static DataAccessResult setData(WeakReference<Context> aContextRef, String databaseName, String SQL, Object[] parameters) throws DataAccessException{
+		return dbAccess(aContextRef, databaseName, SQL, parameters, true);
 	}
 	/**
 	 * This method is used to execute standard select, insert, update, etc. SQL statements and matching prepared statements against any SQLite database file included in 
 	 * the assets directory of an Android application.
 	 * 
-	 * @param anActivity - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
+	 * @param aContext - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
 	 * the application.
 	 * @param databaseName - A string that matches the name of the SQLite file included in the assets directory of the Android application.
 	 * @param SQL - An SQL string for a standard SQL statement or a prepared statement used to query the database
@@ -174,17 +184,17 @@ public class DataAccessObject {
 	 *  and other helpful pieces of information.
 	 * @throws DataAccessException
 	 */
-	public static DataAccessResult transact(Activity anActivity, String databaseName, String SQL, Object[] parameters) throws DataAccessException{
+	public static DataAccessResult transact(WeakReference<Context> aContextRef, String databaseName, String SQL, Object[] parameters) throws DataAccessException{
 		boolean isChangeData = true;
 		if(SQL.toLowerCase().startsWith("select")){
 			System.out.println("starts with select");
 			isChangeData = false;
 		}
 		System.out.println("SQL: "+SQL+" isChanging: "+isChangeData);
-		return dbAccess(anActivity, databaseName, SQL, parameters, isChangeData);
+		return dbAccess(aContextRef, databaseName, SQL, parameters, isChangeData);
 	}
 
-	private static DataAccessResult dbAccess(Activity anActivity, String databaseName, String SQL, Object[] parameters, boolean treatAsChangeData) throws DataAccessException{
+	private static DataAccessResult dbAccess(WeakReference<Context> aContextRef, String databaseName, String SQL, Object[] parameters, boolean treatAsChangeData) throws DataAccessException{
 		if(databaseName == null){
 			return null;
 		}
@@ -193,7 +203,7 @@ public class DataAccessObject {
 		}
 		boolean startedLocalTransaction = false;
 		//System.out.println("getting to database "+databaseName+" with "+SQL);
-		SQLiteDatabase aDatabase = generateDataAccessObject(anActivity, databaseName);
+		SQLiteDatabase aDatabase = generateDataAccessObject(aContextRef, databaseName);
 
 		DataAccessResult aRetResult = new DataAccessResult();
 		try {
@@ -201,7 +211,7 @@ public class DataAccessObject {
 
 			if(treatAsChangeData){
 				if(DataAccessObject.inTransaction == false){
-					DataAccessObject.startTransaction(anActivity, databaseName);
+					DataAccessObject.startTransaction(aContextRef, databaseName);
 					startedLocalTransaction = true;
 				}
 				//System.out.println("changing data with SQL: "+SQL);
@@ -245,7 +255,7 @@ public class DataAccessObject {
 				//System.out.println("local trans? "+startedLocalTransaction);
 				if (startedLocalTransaction) {
 					//System.out.println("ending local transaction");
-					DataAccessObject.endTransaction(anActivity, databaseName, true);
+					DataAccessObject.endTransaction(aContextRef, databaseName, true);
 				}
 				////Log.d(QuickConnectActivity.LOG_TAG, "statement executed");
 			}
@@ -282,7 +292,7 @@ public class DataAccessObject {
 					//System.out.println("error: "+e.getLocalizedMessage());
 					aRetResult.setErrorDescription(e.getLocalizedMessage()+" cause: "+e.getCause());
 					if (startedLocalTransaction) {
-						DataAccessObject.endTransaction(anActivity, databaseName, false);
+						DataAccessObject.endTransaction(aContextRef, databaseName, false);
 					}
 				}
 			}
@@ -290,7 +300,7 @@ public class DataAccessObject {
 		catch(Exception ex){
 			ex.printStackTrace();
 			aRetResult.setErrorDescription(ex.toString());
-			endTransaction(anActivity, databaseName, false);
+			endTransaction(aContextRef, databaseName, false);
 		}
 		//System.out.println("about to return.");
 		return aRetResult;
@@ -298,14 +308,14 @@ public class DataAccessObject {
 	/**
 	 * This method is used as the beginning boundary of a database transaction.  After this call then any calls to setData or getData will be executed 
 	 * as part of a transaction
-	 * @param anActivity - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
+	 * @param aContext - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
 	 * the application.
 	 * @param databaseName - A string that matches the name of the SQLite file included in the assets directory of the Android application.
 	 * @throws DataAccessException
 	 */
-	public static void startTransaction(Activity anActivity, String databaseName) throws DataAccessException{
+	public static void startTransaction(WeakReference<Context> aContextRef, String databaseName) throws DataAccessException{
 		try{
-			generateDataAccessObject(anActivity,databaseName);
+			generateDataAccessObject(aContextRef,databaseName);
 			System.out.println("claiming entire semaphore");
 			DataAccessObject.writeBlockingSemaphore.acquire(Integer.MAX_VALUE);
 			System.out.println("claimed");
@@ -323,19 +333,19 @@ public class DataAccessObject {
 	/**
 	 * This method is used as the ending boundary of a database transaction.  Any setData or getData calls made after the startTransaction method and 
 	 * before a call to this method are treated in such a way that they can be rolled back.
-	 * @param anActivity - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
+	 * @param aContext - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
 	 * the application.
 	 * @param databaseName - A string that matches the name of the SQLite file included in the assets directory of the Android application.
 	 * @param successful - a boolean value indicating if a roll back of all statements in the transaction should be done.  A value of 
 	 * <b>true</b> causes a roll back, <b>false</b> does not.
 	 * @throws DataAccessException
 	 */
-	public static  void endTransaction(Activity anActivity, String databaseName, boolean successful) throws DataAccessException{
+	public static  void endTransaction(WeakReference<Context> aContextRef, String databaseName, boolean successful) throws DataAccessException{
 		//System.out.println("ending transaction");
 		DataAccessObject.inTransaction = false;
 		if(databaseName != null){
 			try {
-				generateDataAccessObject(anActivity, databaseName);
+				generateDataAccessObject(aContextRef, databaseName);
 			} catch (DataAccessException e) {
 				throw new DataAccessException("Error: unable to complete the transaction. "+e.getLocalizedMessage());
 			}
@@ -352,14 +362,14 @@ public class DataAccessObject {
 	 * This method is used to free up resources required to access a specific SQLite database file.  This method should be used sparingly.  
 	 * Do NOT close a database after each use and then reopen it again using a getData or setData call unless you must for memory reasons 
 	 * since this will slow down the execution of your application.
-	 * @param anActivity - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
+	 * @param aContext - The Activity object with which the database is associated.  This is usually the main, or first, Activity of 
 	 * the application.
 	 * @param databaseName - A string that matches the name of the SQLite file included in the assets directory of the Android application.
 	 * @throws DataAccessException
 	 */
-	public static  void close(Activity anActivity, String databaseName) throws DataAccessException{
+	public static  void close(WeakReference<Context> aContextRef, String databaseName) throws DataAccessException{
 		try {
-			generateDataAccessObject(anActivity, databaseName);
+			generateDataAccessObject(aContextRef, databaseName);
 		} catch (DataAccessException e) {
 			throw new DataAccessException("Error: unable to close database "+databaseName+". "+e.getLocalizedMessage());
 		}

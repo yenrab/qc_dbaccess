@@ -20,7 +20,7 @@
  
  
  */
-package org.quickconnect.dbaccess;
+package org.quickconnectfamily.dbaccess;
 
 import java.io.Serializable;
 import java.util.ArrayList;

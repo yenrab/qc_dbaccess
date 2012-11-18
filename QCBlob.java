@@ -20,7 +20,7 @@
 
 
  */
-package org.quickconnect.dbaccess;
+package org.quickconnectfamily.dbaccess;
 
 public class QCBlob {
 	
