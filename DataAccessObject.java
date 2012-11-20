@@ -86,6 +86,8 @@ public class DataAccessObject {
 		if(aContextRef == null || databaseName == null){
 			throw new DataAccessException("Error: unable to access the database "+databaseName+" for the activity "+aContextRef);
 		}
+		
+		
 		if(databaseDirectory == null){
 			Context aContext = aContextRef.get();
 			if(aContext == null){
@@ -97,6 +99,8 @@ public class DataAccessObject {
 		if (!dbDir.exists()){
 			dbDir.mkdir();
 		}
+		
+		
 		try {
 			File dbFile = new File(databaseDirectory+databaseName);
 			if(!dbFile.exists()){
@@ -122,7 +126,10 @@ public class DataAccessObject {
 			//Log.d(QuickConnectActivity.LOG_TAG, "found database: "+databaseName+" retVal: "+retVal);
 			if (retVal == null) {
 				//Log.d(QuickConnectActivity.LOG_TAG, "opening database");
-				retVal = SQLiteDatabase.openDatabase(databaseDirectory+databaseName, null, SQLiteDatabase.CREATE_IF_NECESSARY);
+				
+				retVal = SQLiteDatabase.openDatabase(databaseDirectory+databaseName, 
+						null, SQLiteDatabase.CREATE_IF_NECESSARY);
+				
 				databases.put(databaseName,retVal);
 			}
 
@@ -216,6 +223,7 @@ public class DataAccessObject {
 				}
 				//System.out.println("changing data with SQL: "+SQL);
 				if(parameters.length > 0){
+					
 					SQLiteStatement aPreparedStatement = aDatabase.compileStatement(SQL);
 					int numParams = parameters.length;
 					for (int i = 0; i < numParams; i++){
@@ -223,31 +231,30 @@ public class DataAccessObject {
 							aPreparedStatement.bindNull(i);
 							continue;
 						}
-						String typeName = parameters[i].getClass().getSimpleName();
-						//System.out.println("binding: "+parameters[i].toString()+" as "+typeName);
-						if(typeName.equals("String")){
+						Class<?> type = parameters[i].getClass();
+						if(String.class.isAssignableFrom(type)){
 							aPreparedStatement.bindString(i+1, (String)parameters[i]);
 						}
-						else if(typeName.equals("Double")){
+						else if(Double.class.isAssignableFrom(type)){
 							aPreparedStatement.bindDouble(i+1, (Double)parameters[i]);
 						}
-						else if(typeName.equals("Integer") || typeName.equals("Long")){
+						else if(Integer.class.isAssignableFrom(type) || Long.class.isAssignableFrom(type)){
 							aPreparedStatement.bindLong(i+1, (Integer)parameters[i]);
 						}
 
-						else if(typeName.equals("QCBlob")){
+						else if(QCBlob.class.isAssignableFrom(type)){
 							aPreparedStatement.bindBlob(i+1, ((QCBlob)parameters[i]).bytes());
 						}
 						else{
 							Exception unknownParamType = new Exception("Parameter "+i+ "is anknown Parameter type: "
-									+typeName
+									+type.getCanonicalName()
 									+".  Use only Strings, Doubles, Integers, or QCBlobs as parameters.");
 							throw unknownParamType;
 						}
 					}
 					aPreparedStatement.execute();
-					//System.out.println("prepared statement executed");
 					aPreparedStatement.close();
+					
 				}
 				else{
 					aDatabase.execSQL(SQL);
